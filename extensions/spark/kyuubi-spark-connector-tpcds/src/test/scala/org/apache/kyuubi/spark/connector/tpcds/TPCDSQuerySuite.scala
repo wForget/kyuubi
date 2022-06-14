@@ -17,16 +17,17 @@
 
 package org.apache.kyuubi.spark.connector.tpcds
 
+import io.trino.tpcds.Table
+
 import scala.collection.JavaConverters._
 import scala.io.{Codec, Source}
-
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
-
 import org.apache.kyuubi.KyuubiFunSuite
 import org.apache.kyuubi.spark.connector.common.GoldenFileUtils._
 import org.apache.kyuubi.spark.connector.common.LocalSparkSession.withSparkSession
 import org.apache.kyuubi.spark.connector.common.SparkUtils
+import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 
 // scalastyle:off line.size.limit
 /**
@@ -84,5 +85,28 @@ class TPCDSQuerySuite extends KyuubiFunSuite {
         }
       }
     }
+  }
+
+  test("test taskPartitionBytes") {
+    val taskPartitionBytes: Long = 1 * 1024 * 1024L
+
+    val sparkConf = new SparkConf().setMaster("local[*]")
+      .set("spark.ui.enabled", "false")
+      .set("spark.sql.catalogImplementation", "in-memory")
+      .set("spark.sql.catalog.tpcds", classOf[TPCDSCatalog].getName)
+      .set("spark.connector.tpcds.taskPartitionBytes", String.valueOf(taskPartitionBytes))
+    withSparkSession(SparkSession.builder.config(sparkConf).getOrCreate()) { spark =>
+      val tableName = "catalog_returns"
+      val table = Table.getTable(tableName)
+      val scale = 100
+      val df = spark.sql(s"select * from tpcds.sf$scale.$tableName")
+      val scan = df.queryExecution.analyzed.collect {
+        case scanExec: BatchScanExec => scanExec.scan.asInstanceOf[TPCDSBatchScan]
+      }
+      val expected =
+        (TPCDSStatisticsUtils.sizeInBytes(table, scale) / taskPartitionBytes).ceil.toInt
+      assert(expected == 1)
+    }
+
   }
 }
