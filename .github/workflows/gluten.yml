@@ -20,6 +20,7 @@ name: Gluten CI
 on:
   schedule:
     - cron: 0 4 * * *
+  workflow_dispatch:
 
 env:
   MVN_OPT: -Dmaven.javadoc.skip=true -Drat.skip=true -Dscalastyle.skip=true -Dspotless.check.skip -Dorg.slf4j.simpleLogger.defaultLogLevel=warn -Pjdbc-shaded,gen-policy -Dmaven.plugin.download.cache.path=/tmp/engine-archives
@@ -27,6 +28,7 @@ env:
 jobs:
   gluten-build:
     name: Build Gluten
+    if: ${{ startsWith(github.repository, 'apache/') || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -56,20 +58,28 @@ jobs:
         id: gluten-cache
         uses: actions/cache@v3
         with:
-          path: gluten/package/target/
-          key: gluten_package_${{ steps.date.outputs.date }}
+          path: gluten/dist/
+          key: gluten_dist_${{ steps.date.outputs.date }}
       - name: Build gluten project
         run: |
           if [[ "${{ steps.gluten-cache.outputs.cache-hit }}" != 'true' ]]; then
-            git clone https://github.com/oap-project/gluten.git
+            git clone https://github.com/apache/incubator-gluten.git gluten
             cd gluten
-            ./dev/buildbundle-veloxbe.sh
+            sudo ./dev/package.sh
+            rm -rf dist && mkdir -p dist
+            cp package/target/thirdparty-lib/gluten-thirdparty-lib-*.jar dist
+            mvn clean package -Pbackends-velox -Prss -Pspark-3.3 -DskipTests
+            cp package/target/gluten-velox-bundle-spark*.jar dist
+            mvn clean package -Pbackends-velox -Prss -Pspark-3.4 -DskipTests
+            cp package/target/gluten-velox-bundle-spark*.jar dist
+            mvn clean package -Pbackends-velox -Prss -Pspark-3.5 -DskipTests
+            cp package/target/gluten-velox-bundle-spark*.jar dist
           fi
       - uses: actions/cache@v3
         if: steps.gluten-cache.outputs.cache-hit != 'true'
         with:
-          path: gluten/package/target/
-          key: gluten_package_${{ steps.date.outputs.date }}
+          path: gluten/dist/
+          key: gluten_dist_${{ steps.date.outputs.date }}
 
   gluten-it:
     name: Gluten Integration TPC-H/DS Test
@@ -78,7 +88,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        spark: [ '3.4', '3.3' ]
+        spark: [ '3.5', '3.4', '3.3' ]
     steps:
       - uses: actions/checkout@v4
       - name: Free up disk space
@@ -101,8 +111,8 @@ jobs:
         id: gluten-cache
         uses: actions/cache@v3
         with:
-          path: gluten/package/target/
-          key: gluten_package_${{ steps.date.outputs.date }}
+          path: gluten/dist/
+          key: gluten_dist_${{ steps.date.outputs.date }}
       - name: Setup JDK 8
         uses: actions/setup-java@v4
         with:

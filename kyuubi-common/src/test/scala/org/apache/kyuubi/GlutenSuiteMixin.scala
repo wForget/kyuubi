@@ -21,7 +21,7 @@ trait GlutenSuiteMixin {
   protected def extraJars: String = {
     System.getProperty("java.class.path")
       .split(":")
-      .filter(_.contains("gluten-velox-bundle-spark")).head
+      .filter(_.contains("gluten-")).mkString(",")
   }
 
   protected def extraConfigs: Map[String, String] = Map(
@@ -30,5 +30,6 @@ trait GlutenSuiteMixin {
     "spark.memory.offHeap.enabled" -> "true",
     "spark.shuffle.manager" -> "org.apache.spark.shuffle.sort.ColumnarShuffleManager",
     "spark.gluten.ui.enabled" -> "false",
+    "spark.gluten.loadLibFromJar" -> "true",
     "spark.jars" -> extraJars)
 }
