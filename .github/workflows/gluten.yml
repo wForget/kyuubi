@@ -73,7 +73,7 @@ jobs:
             ARCH=`uname -m`
             rm -rf "$DISTDIR"
             mkdir -p "$DISTDIR"
-            $GLUTEN_DIR/dev/builddeps-veloxbe.sh --build_tests=ON --build_benchmarks=ON --enable_s3=ON --enable_hdfs=ON
+            sudo $GLUTEN_DIR/dev/builddeps-veloxbe.sh --build_tests=ON --build_benchmarks=ON --enable_s3=ON --enable_hdfs=ON
             mvn clean package -Pbackends-velox -Prss -Pspark-3.3 -DskipTests
             cp package/target/gluten-*-bundle-spark*.jar "$DISTDIR"
             mvn clean package -Pbackends-velox -Prss -Pspark-3.4 -DskipTests
