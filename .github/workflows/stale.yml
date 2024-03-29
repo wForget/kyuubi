@@ -23,6 +23,7 @@ on:
 
 jobs:
   stale:
+    if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
