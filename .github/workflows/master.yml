@@ -18,14 +18,7 @@
 name: CI
 
 on:
-  push:
-    branches:
-      - master
-      - branch-*
-  pull_request:
-    branches:
-      - master
-      - branch-*
+  workflow_dispatch:
 
 concurrency:
   group: test-${{ github.head_ref || github.run_id }}
